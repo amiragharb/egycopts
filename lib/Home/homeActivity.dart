@@ -69,21 +69,11 @@ class HomeActivityState extends State<HomeActivity> {
 
   Locale _appLocale = Locale(languageHome ?? 'en');
 
-  // Contrôleurs personnalisés
+  // Contrôleurs personnalisés pour le drawer
   MyCustomControllerDrawerName customControllerDrawerName =
       MyCustomControllerDrawerName(drawerNameController: TextEditingController());
   MyCustomControllerDrawerEmail customControllerDrawerEmail =
       MyCustomControllerDrawerEmail(drawerEmailController: TextEditingController());
-  MyCustomControllerMyBookings customControllerMyBookings =
-      MyCustomControllerMyBookings(myBookingsController: TextEditingController());
-  MyCustomControllerProfile customControllerProfile =
-      MyCustomControllerProfile(profileController: TextEditingController());
-  MyCustomControllerNews customControllerNews =
-      MyCustomControllerNews(newsController: TextEditingController());
-  MyCustomControllerFamily customControllerFamily =
-      MyCustomControllerFamily(familyController: TextEditingController());
-  MyCustomControllerLive customControllerLive =
-      MyCustomControllerLive(liveController: TextEditingController());
 
   @override
   void initState() {
@@ -106,7 +96,14 @@ class HomeActivityState extends State<HomeActivity> {
     }
 
     if (mobileToken == null || mobileToken!.isEmpty) {
-      Fluttertoast.showToast(msg: "Erreur lors de l'initialisation du token Firebase.");
+      Fluttertoast.showToast(
+        msg: "Erreur lors de l'initialisation du token Firebase.",
+        toastLength: Toast.LENGTH_SHORT,
+        gravity: ToastGravity.BOTTOM,
+        backgroundColor: Colors.red,
+        textColor: Colors.white,
+        fontSize: 16.0,
+      );
       return;
     }
 
@@ -185,35 +182,64 @@ class HomeActivityState extends State<HomeActivity> {
             systemOverlayStyle: SystemUiOverlayStyle.light,
           ),
           body: buildBody(),
-          bottomNavigationBar: BottomNavigationBar(
-            currentIndex: selectedBottomItem,
-            onTap: onBottomNavTap,
-            showUnselectedLabels: true,
-            unselectedItemColor: greyColor,
-            selectedItemColor: primaryColor,
-            type: BottomNavigationBarType.fixed,
-            items: [
-              BottomNavigationBarItem(
-                icon: MyCustomIconMyBookings(customController: customControllerMyBookings),
-                label: AppLocalizations.of(context)?.myBookings ?? "Bookings",
+          bottomNavigationBar: Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.08),
+                  spreadRadius: 0,
+                  blurRadius: 20,
+                  offset: const Offset(0, -4),
+                ),
+                BoxShadow(
+                  color: primaryColor.withOpacity(0.05),
+                  spreadRadius: 0,
+                  blurRadius: 10,
+                  offset: const Offset(0, -2),
+                ),
+              ],
+              border: Border(
+                top: BorderSide(
+                  color: primaryColor.withOpacity(0.12),
+                  width: 0.8,
+                ),
               ),
-              BottomNavigationBarItem(
-                icon: MyCustomIconNews(customController: customControllerNews),
-                label: AppLocalizations.of(context)?.news ?? "News",
+            ),
+            child: SafeArea(
+              child: Container(
+                height: 75,
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    _buildNavItem(
+                      index: 0,
+                      icon: 'images/online_booking.png',
+                      label: AppLocalizations.of(context)?.myBookings ?? "Bookings",
+                    ),
+                    _buildNavItem(
+                      index: 1,
+                      icon: 'images/earth.png',
+                      label: AppLocalizations.of(context)?.news ?? "News",
+                    ),
+                    _buildNavItem(
+                      index: 2,
+                      icon: 'images/live.png',
+                      label: AppLocalizations.of(context)?.live ?? "Live",
+                    ),
+                    _buildNavItem(
+                      index: 3,
+                      icon: accountType == "1" ? 'images/love.png' : 'images/user.png',
+                      label: accountType == "1"
+                          ? (AppLocalizations.of(context)?.myFamily ?? "Family")
+                          : (AppLocalizations.of(context)?.myProfile ?? "Profile"),
+                    ),
+                  ],
+                ),
               ),
-              BottomNavigationBarItem(
-                icon: MyCustomIconLive(customController: customControllerLive),
-                label: AppLocalizations.of(context)?.live ?? "Live",
-              ),
-              BottomNavigationBarItem(
-                icon: accountType == "1"
-                    ? MyCustomIconFamily(customController: customControllerFamily)
-                    : MyCustomIconProfile(customController: customControllerProfile),
-                label: accountType == "1"
-                    ? (AppLocalizations.of(context)?.myFamily ?? "Family")
-                    : (AppLocalizations.of(context)?.myProfile ?? "Profile"),
-              ),
-            ],
+            ),
           ),
         ),
       ),
@@ -233,6 +259,164 @@ class HomeActivityState extends State<HomeActivity> {
       default:
         return const Center(child: CircularProgressIndicator());
     }
+  }
+
+  Widget _buildNavItem({
+    required int index,
+    required String icon,
+    required String label,
+  }) {
+    final bool isSelected = selectedBottomItem == index;
+    
+    return Expanded(
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () => onBottomNavTap(index),
+          borderRadius: BorderRadius.circular(16),
+          splashColor: primaryColor.withOpacity(0.1),
+          highlightColor: primaryColor.withOpacity(0.05),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeInOutCubic,
+            margin: const EdgeInsets.symmetric(horizontal: 4),
+            padding: const EdgeInsets.symmetric(vertical: 6),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(16),
+              gradient: isSelected
+                  ? LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        primaryColor.withOpacity(0.12),
+                        primaryColor.withOpacity(0.08),
+                        primaryColor.withOpacity(0.04),
+                      ],
+                    )
+                  : null,
+              border: isSelected
+                  ? Border.all(
+                      color: primaryColor.withOpacity(0.2),
+                      width: 1,
+                    )
+                  : null,
+              boxShadow: isSelected
+                  ? [
+                      BoxShadow(
+                        color: primaryColor.withOpacity(0.15),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
+                      ),
+                    ]
+                  : null,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                // Professional icon container
+                Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    // Animated background circle
+                    AnimatedContainer(
+                      duration: const Duration(milliseconds: 300),
+                      width: isSelected ? 36 : 32,
+                      height: isSelected ? 36 : 32,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        gradient: isSelected
+                            ? RadialGradient(
+                                colors: [
+                                  primaryColor.withOpacity(0.15),
+                                  primaryColor.withOpacity(0.05),
+                                ],
+                              )
+                            : null,
+                        border: isSelected
+                            ? Border.all(
+                                color: primaryColor.withOpacity(0.3),
+                                width: 1.5,
+                              )
+                            : null,
+                      ),
+                    ),
+                    // Icon with smooth transition
+                    AnimatedContainer(
+                      duration: const Duration(milliseconds: 300),
+                      child: Image.asset(
+                        icon,
+                        height: isSelected ? 22 : 20,
+                        width: isSelected ? 22 : 20,
+                        color: isSelected ? primaryColor : greyColor,
+                        fit: BoxFit.contain,
+                        errorBuilder: (context, error, stackTrace) {
+                          return Icon(
+                            Icons.apps,
+                            size: isSelected ? 22 : 20,
+                            color: isSelected ? primaryColor : greyColor,
+                          );
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+                // Responsive spacing
+                SizedBox(height: isSelected ? 4 : 3),
+                // Professional text label with animation
+                Flexible(
+                  child: AnimatedDefaultTextStyle(
+                    duration: const Duration(milliseconds: 300),
+                    style: TextStyle(
+                      fontSize: isSelected ? 10.5 : 9.5,
+                      fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
+                      color: isSelected ? primaryColor : greyColor,
+                      fontFamily: 'cocon-next-arabic-regular',
+                      letterSpacing: isSelected ? 0.3 : 0.2,
+                      height: 1.1,
+                    ),
+                    child: Text(
+                      label,
+                      textAlign: TextAlign.center,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ),
+                // Professional bottom indicator
+                AnimatedContainer(
+                  duration: const Duration(milliseconds: 300),
+                  margin: const EdgeInsets.only(top: 2),
+                  height: isSelected ? 3 : 0,
+                  width: isSelected ? 24 : 0,
+                  decoration: BoxDecoration(
+                    gradient: isSelected
+                        ? LinearGradient(
+                            colors: [
+                              primaryColor.withOpacity(0.8),
+                              primaryColor,
+                              primaryColor.withOpacity(0.8),
+                            ],
+                          )
+                        : null,
+                    borderRadius: BorderRadius.circular(2),
+                    boxShadow: isSelected
+                        ? [
+                            BoxShadow(
+                              color: primaryColor.withOpacity(0.4),
+                              blurRadius: 4,
+                              offset: const Offset(0, 1),
+                            ),
+                          ]
+                        : null,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
   }
 
   Future<bool> _onWillPop() async {
@@ -364,82 +548,4 @@ class MyCustomDrawerEmail extends StatelessWidget {
 
 // === CONTROLEURS ET ICONES POUR LA NAVIGATION BASSE ===
 
-class MyCustomControllerMyBookings {
-  final TextEditingController myBookingsController;
-  Color color;
-  MyCustomControllerMyBookings({required this.myBookingsController, this.color = Colors.white});
-}
 
-class MyCustomIconMyBookings extends StatelessWidget {
-  final MyCustomControllerMyBookings customController;
-  const MyCustomIconMyBookings({Key? key, required this.customController}) : super(key: key);
-
-  @override
-  Widget build(BuildContext context) {
-    return Image(image: const ExactAssetImage('images/online_booking.png'), color: customController.color);
-  }
-}
-
-class MyCustomControllerProfile {
-  final TextEditingController profileController;
-  Color color;
-  MyCustomControllerProfile({required this.profileController, this.color = Colors.white});
-}
-
-class MyCustomIconProfile extends StatelessWidget {
-  final MyCustomControllerProfile customController;
-  const MyCustomIconProfile({Key? key, required this.customController}) : super(key: key);
-
-  @override
-  Widget build(BuildContext context) {
-    return Image(image: const ExactAssetImage('images/user.png'), color: customController.color);
-  }
-}
-
-class MyCustomControllerNews {
-  final TextEditingController newsController;
-  Color color;
-  MyCustomControllerNews({required this.newsController, this.color = Colors.white});
-}
-
-class MyCustomIconNews extends StatelessWidget {
-  final MyCustomControllerNews customController;
-  const MyCustomIconNews({Key? key, required this.customController}) : super(key: key);
-
-  @override
-  Widget build(BuildContext context) {
-    return Image(image: const ExactAssetImage('images/earth.png'), color: customController.color);
-  }
-}
-
-class MyCustomControllerFamily {
-  final TextEditingController familyController;
-  Color color;
-  MyCustomControllerFamily({required this.familyController, this.color = Colors.white});
-}
-
-class MyCustomIconFamily extends StatelessWidget {
-  final MyCustomControllerFamily customController;
-  const MyCustomIconFamily({Key? key, required this.customController}) : super(key: key);
-
-  @override
-  Widget build(BuildContext context) {
-    return Image(image: const ExactAssetImage('images/love.png'), color: customController.color);
-  }
-}
-
-class MyCustomControllerLive {
-  final TextEditingController liveController;
-  Color color;
-  MyCustomControllerLive({required this.liveController, this.color = Colors.white});
-}
-
-class MyCustomIconLive extends StatelessWidget {
-  final MyCustomControllerLive customController;
-  const MyCustomIconLive({Key? key, required this.customController}) : super(key: key);
-
-  @override
-  Widget build(BuildContext context) {
-    return Image(image: const ExactAssetImage('images/live.png'), color: customController.color);
-  }
-}

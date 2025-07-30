@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'package:egpycopsversion4/API/apiClient.dart';
-import 'package:egpycopsversion4/Colors/colors.dart';
 import 'package:egpycopsversion4/Home/youtubeLiveVideo.dart';
 import 'package:egpycopsversion4/Home/youtubeLiveVideoDetailsActivity.dart';
 import 'package:egpycopsversion4/Models/liveVideos.dart';
@@ -120,26 +119,32 @@ class _YoutubeLiveFragmentState extends State<YoutubeLiveFragment> {
     if (!mounted) return;
     setState(() {
       for (final video in fetched) {
-        if (RegExp(r'youtu(\.be|be\.com)', caseSensitive: false).hasMatch(video.liveUrl ?? '')) {
+        // Validate YouTube URL before processing
+        final liveUrl = video.liveUrl ?? '';
+        if (liveUrl.isNotEmpty && 
+            RegExp(r'youtu(\.be|be\.com)', caseSensitive: false).hasMatch(liveUrl)) {
+          
           // 🔹 Conversion de isLive en String "1" ou "0"
           String isLive = "0";
           final rawIsLive = video.isLive;
 
           if (rawIsLive is bool) {
-            isLive = rawIsLive != null ? "1" : "0";
+            isLive = rawIsLive == true ? "1" : "0";
           } else if (rawIsLive != null) {
             final s = rawIsLive.toString().toLowerCase();
             isLive = (s == 'true' || s == '1') ? "1" : "0";
           }
 
-          if (!listViewLiveVideos.any((e) => e["courseId"] == video.courseId)) {
+          // Only add if not already exists and has valid data
+          if (!listViewLiveVideos.any((e) => e["courseId"] == video.courseId) &&
+              video.courseId != null) {
             listViewLiveVideos.add({
               "courseId": video.courseId,
-              "nameAr": video.nameAr,
-              "nameEn": video.nameEn,
-              "liveDescriptionAr": video.liveDescriptionAr,
-              "liveDescriptionEn": video.liveDescriptionEn,
-              "liveUrl": video.liveUrl,
+              "nameAr": video.nameAr ?? "",
+              "nameEn": video.nameEn ?? "",
+              "liveDescriptionAr": video.liveDescriptionAr ?? "",
+              "liveDescriptionEn": video.liveDescriptionEn ?? "",
+              "liveUrl": liveUrl,
               "isLive": isLive, // ✅ String "1" ou "0"
               "date": video.date ?? "",
             });
@@ -158,21 +163,94 @@ class _YoutubeLiveFragmentState extends State<YoutubeLiveFragment> {
   @override
   Widget build(BuildContext context) {
     final localizations = AppLocalizations.of(context);
-    return Container(
-      color: grey200,
-      child: Column(
+    return Scaffold(
+      backgroundColor: Color(0xFFF8FAFC),
+      body: Column(
         children: [
-          Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: Text(
-              localizations?.live ?? "Live",
-              style: TextStyle(
-                fontSize: 24,
-                fontFamily: 'cocon-next-arabic-regular',
-                fontWeight: FontWeight.normal,
-                color: primaryDarkColor,
+          // Modern Header
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [Color(0xB30D2138), Color(0xB30A1C31)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
               ),
-              maxLines: 1,
+              borderRadius: BorderRadius.only(
+                bottomLeft: Radius.circular(30),
+                bottomRight: Radius.circular(30),
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Color(0xFF1E3A8A).withOpacity(0.3),
+                  blurRadius: 20,
+                  offset: const Offset(0, 10),
+                ),
+              ],
+            ),
+            child: SafeArea(
+              child: Row(
+                children: [
+                  Container(
+                    width: 50,
+                    height: 50,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: Colors.white.withOpacity(0.2),
+                      border: Border.all(
+                        color: Colors.white.withOpacity(0.3),
+                        width: 1,
+                      ),
+                    ),
+                    child: const Icon(
+                      Icons.live_tv_rounded,
+                      color: Colors.white,
+                      size: 24,
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          localizations?.live ?? "Live",
+                          style: const TextStyle(
+                            fontSize: 28,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                            fontFamily: 'cocon-next-arabic-regular',
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          "Watch live streams and courses",
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Colors.white.withOpacity(0.9),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: Colors.red.withOpacity(0.2),
+                      border: Border.all(
+                        color: Colors.red.withOpacity(0.3),
+                        width: 1,
+                      ),
+                    ),
+                    child: const Icon(
+                      Icons.circle,
+                      color: Colors.red,
+                      size: 12,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
           Expanded(child: _buildListViewChild(localizations)),
@@ -183,90 +261,351 @@ class _YoutubeLiveFragmentState extends State<YoutubeLiveFragment> {
 
   Widget _buildListViewChild(AppLocalizations? localizations) {
     if (loadingState == 0) {
-      return ListView.builder(
-        itemCount: 10,
-        itemBuilder: (context, index) => _buildSkeletonItem(context),
-      );
+      return _buildLoadingState();
     } else if (loadingState == 1) {
       return ListView.builder(
         controller: _scrollController,
+        padding: const EdgeInsets.all(16),
         itemCount: listViewLiveVideos.length,
         itemBuilder: (context, index) {
           final video = listViewLiveVideos[index];
 
-          final liveUrl = video["liveUrl"] as String? ?? "";
-          final isLive = video["isLive"] as String? ?? "0"; // ✅ String
+          // Safe extraction with null checks
+          final liveUrl = (video["liveUrl"] as String?) ?? "";
+          final isLive = (video["isLive"] as String?) ?? "0";
           final desc = myLanguage == "en"
-              ? (video["liveDescriptionEn"] as String? ?? "")
-              : (video["liveDescriptionAr"] as String? ?? "");
+              ? ((video["liveDescriptionEn"] as String?) ?? "")
+              : ((video["liveDescriptionAr"] as String?) ?? "");
           final name = myLanguage == "en"
-              ? (video["nameEn"] as String? ?? "")
-              : (video["nameAr"] as String? ?? "");
-          final date = video["date"] as String? ?? "";
+              ? ((video["nameEn"] as String?) ?? "")
+              : ((video["nameAr"] as String?) ?? "");
+          final date = (video["date"] as String?) ?? "";
+          final courseIdRaw = video["courseId"];
+          
+          // Safe courseId conversion to int
+          int? courseId;
+          if (courseIdRaw is int) {
+            courseId = courseIdRaw;
+          } else if (courseIdRaw is String) {
+            courseId = int.tryParse(courseIdRaw);
+          } else if (courseIdRaw != null) {
+            courseId = int.tryParse(courseIdRaw.toString());
+          }
 
-          return GestureDetector(
-            onTap: () async {
-              if (await _checkInternetConnection() == '1') {
-                Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (context) => YoutubeLiveVideoDetailsActivity(video["courseId"]),
-                  ),
-                );
-              } else {
-                Navigator.of(context).push(
-                  MaterialPageRoute(builder: (context) => NoInternetConnectionActivity()),
-                );
-              }
-            },
-            child: Card(
+          // Skip if essential data is missing
+          if (liveUrl.isEmpty || courseId == null) {
+            return const SizedBox.shrink();
+          }
+
+          return Container(
+            margin: const EdgeInsets.only(bottom: 20),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(20),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.1),
+                  blurRadius: 15,
+                  offset: const Offset(0, 5),
+                  spreadRadius: 0,
+                ),
+              ],
+            ),
+            child: InkWell(
+              borderRadius: BorderRadius.circular(20),
+              onTap: () async {
+                try {
+                  if (courseId == null) return;
+
+                  if (await _checkInternetConnection() == '1') {
+                    // Remove the current video from list before navigating
+                    final selectedVideo = listViewLiveVideos[index];
+
+                    setState(() {
+                      listViewLiveVideos.removeAt(index);
+                    });
+
+                    // Delay to allow widget disposal (critical!)
+                    await Future.delayed(Duration(milliseconds: 300));
+
+                    await Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (context) => YoutubeLiveVideoDetailsActivity(courseId!),
+                      ),
+                    );
+
+                    // Restore the removed video after returning
+                    setState(() {
+                      listViewLiveVideos.insert(index, selectedVideo);
+                    });
+                  } else {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(builder: (context) => NoInternetConnectionActivity()),
+                    );
+                  }
+                } catch (e) {
+                  debugPrint("❗️Navigation error: $e");
+                }
+              },
+
               child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // Video Thumbnail with Live Badge
                   Stack(
-                    alignment: Alignment.center,
                     children: [
-                      YoutubeLiveVideo(liveUrl, isLive, false), // ✅ String pour live
-                      Container(width: double.infinity, height: 200),
-                    ],
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
-                    child: Text(
-                      desc,
-                      style: TextStyle(
-                        color: logoBlue,
-                        fontSize: 20.0,
-                        fontWeight: FontWeight.normal,
-                        fontFamily: 'cocon-next-arabic-regular',
-                      ),
-                      maxLines: 2,
-                    ),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 10),
-                    child: Text(
-                      name,
-                      style: const TextStyle(
-                        fontSize: 14.0,
-                        color: Colors.black,
-                        fontWeight: FontWeight.normal,
-                        fontFamily: 'cocon-next-arabic-regular',
-                      ),
-                      maxLines: 2,
-                    ),
-                  ),
-                  if (date.isNotEmpty)
-                    Padding(
-                      padding: const EdgeInsets.only(left: 10, right: 10, bottom: 8),
-                      child: Text(
-                        date,
-                        style: TextStyle(
-                          color: grey500,
-                          fontSize: 14.0,
-                          fontWeight: FontWeight.normal,
-                          fontFamily: 'cocon-next-arabic-regular',
+                      ClipRRect(
+                        borderRadius: const BorderRadius.only(
+                          topLeft: Radius.circular(20),
+                          topRight: Radius.circular(20),
+                        ),
+                        child: Container(
+                          height: 200,
+                          width: double.infinity,
+                          child: Stack(
+                            fit: StackFit.expand,
+                            children: [
+                              // YouTube Video Preview (no autoplay)
+                              Builder(
+                                builder: (context) {
+                                  try {
+                                    return YoutubeLiveVideo(liveUrl, isLive, false);
+                                  } catch (e) {
+                                    debugPrint("❗️Error loading YouTube video: $e");
+                                    return Container(
+                                      color: Colors.grey[300],
+                                      child: Column(
+                                        mainAxisAlignment: MainAxisAlignment.center,
+                                        children: [
+                                          Icon(
+                                            Icons.video_library_outlined,
+                                            color: Colors.grey[600],
+                                            size: 48,
+                                          ),
+                                          const SizedBox(height: 8),
+                                          Text(
+                                            'Video loading failed',
+                                            style: TextStyle(
+                                              color: Colors.grey[600],
+                                              fontSize: 14,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    );
+                                  }
+                                },
+                              ),
+                              
+                              // Overlay to prevent interaction with video in list
+                              Container(
+                                color: Colors.transparent,
+                              ),
+                            ],
+                          ),
                         ),
                       ),
+                      // Live Badge
+                      if (isLive == "1")
+                        Positioned(
+                          top: 16,
+                          left: 16,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                colors: [Color(0xFFDC2626), Color(0xFFEF4444)],
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                              ),
+                              borderRadius: BorderRadius.circular(20),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Color(0xFFDC2626).withOpacity(0.4),
+                                  blurRadius: 8,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ],
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Container(
+                                  width: 8,
+                                  height: 8,
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                                const SizedBox(width: 6),
+                                const Text(
+                                  'LIVE',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      // Play Button Overlay
+                      Positioned.fill(
+                        child: Container(
+                          decoration: BoxDecoration(
+                            borderRadius: const BorderRadius.only(
+                              topLeft: Radius.circular(20),
+                              topRight: Radius.circular(20),
+                            ),
+                            gradient: LinearGradient(
+                              colors: [
+                                Colors.transparent,
+                                Colors.black.withOpacity(0.3),
+                              ],
+                              begin: Alignment.topCenter,
+                              end: Alignment.bottomCenter,
+                            ),
+                          ),
+                          child: Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Container(
+                                  width: 70,
+                                  height: 70,
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    color: Colors.white.withOpacity(0.95),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: Colors.black.withOpacity(0.3),
+                                        blurRadius: 15,
+                                        offset: const Offset(0, 5),
+                                      ),
+                                    ],
+                                  ),
+                                  child: Icon(
+                                    isLive == "1" ? Icons.visibility : Icons.play_arrow,
+                                    color: Color(0xFF1E3A8A),
+                                    size: 35,
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                  decoration: BoxDecoration(
+                                    color: Colors.black.withOpacity(0.7),
+                                    borderRadius: BorderRadius.circular(20),
+                                  ),
+                                  child: Text(
+                                    isLive == "1" ? 'Watch Live' : 'Play Video',
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  
+                  // Content Section
+                  Padding(
+                    padding: const EdgeInsets.all(20),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Title
+                        Text(
+                          desc.isNotEmpty ? desc : name,
+                          style: const TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF1F2937),
+                            fontFamily: 'cocon-next-arabic-regular',
+                            height: 1.3,
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        
+                        const SizedBox(height: 12),
+                        
+                        // Course Name
+                        if (name.isNotEmpty && desc.isNotEmpty)
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: Color(0xFF3B82F6).withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(
+                                color: Color(0xFF3B82F6).withOpacity(0.3),
+                              ),
+                            ),
+                            child: Text(
+                              name,
+                              style: const TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w500,
+                                color: Color(0xFF3B82F6),
+                                fontFamily: 'cocon-next-arabic-regular',
+                              ),
+                            ),
+                          ),
+                        
+                        if (name.isNotEmpty && desc.isNotEmpty)
+                          const SizedBox(height: 12),
+                        
+                        // Date and Status Row
+                        Row(
+                          children: [
+                            Icon(
+                              Icons.schedule,
+                              size: 16,
+                              color: Color(0xFF6B7280),
+                            ),
+                            const SizedBox(width: 6),
+                            Expanded(
+                              child: Text(
+                                date.isNotEmpty ? date : "No date available",
+                                style: const TextStyle(
+                                  fontSize: 14,
+                                  color: Color(0xFF6B7280),
+                                  fontFamily: 'cocon-next-arabic-regular',
+                                ),
+                              ),
+                            ),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: isLive == "1" 
+                                  ? Color(0xFFDCFDF7)
+                                  : Color(0xFFF3F4F6),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Text(
+                                isLive == "1" ? "STREAMING" : "RECORDED",
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                  color: isLive == "1" 
+                                    ? Color(0xFF059669)
+                                    : Color(0xFF6B7280),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
                     ),
+                  ),
                 ],
               ),
             ),
@@ -274,87 +613,207 @@ class _YoutubeLiveFragmentState extends State<YoutubeLiveFragment> {
         },
       );
     } else if (loadingState == 2) {
-      return Center(
-        child: Text(
-          localizations?.errorConnectingWithServer ?? "Server error",
-          style: const TextStyle(
-            fontFamily: 'cocon-next-arabic-regular',
-            fontSize: 20.0,
-            color: Colors.grey,
-          ),
-        ),
-      );
+      return _buildErrorState(localizations);
     } else {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Padding(
-              padding: const EdgeInsets.all(8.0),
-              child: Image.asset(
-                'images/live.png',
-                color: Colors.grey,
-                width: 60,
-                height: 60,
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.all(8.0),
-              child: Text(
-                localizations?.noVideosFound ?? "No videos found",
-                style: const TextStyle(
-                  fontFamily: 'cocon-next-arabic-regular',
-                  fontSize: 20.0,
-                  color: Colors.grey,
-                ),
-              ),
-            ),
-          ],
-        ),
-      );
+      return _buildEmptyState(localizations);
     }
   }
 
-  Widget _buildSkeletonItem(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.all(14.0),
-      child: Container(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(10.0),
-        ),
+  Widget _buildLoadingState() {
+    return ListView.builder(
+      padding: const EdgeInsets.all(16),
+      itemCount: 6,
+      itemBuilder: (context, index) {
+        return Container(
+          margin: const EdgeInsets.only(bottom: 20),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.05),
+                blurRadius: 15,
+                offset: const Offset(0, 5),
+                spreadRadius: 0,
+              ),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Video thumbnail skeleton
+              SkeletonAnimation(
+                child: Container(
+                  height: 200,
+                  width: double.infinity,
+                  decoration: BoxDecoration(
+                    borderRadius: const BorderRadius.only(
+                      topLeft: Radius.circular(20),
+                      topRight: Radius.circular(20),
+                    ),
+                    color: Colors.grey[300],
+                  ),
+                ),
+              ),
+              
+              // Content skeleton
+              Padding(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Title skeleton
+                    SkeletonAnimation(
+                      child: Container(
+                        height: 24,
+                        width: double.infinity,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(12),
+                          color: Colors.grey[300],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    SkeletonAnimation(
+                      child: Container(
+                        height: 24,
+                        width: MediaQuery.of(context).size.width * 0.7,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(12),
+                          color: Colors.grey[300],
+                        ),
+                      ),
+                    ),
+                    
+                    const SizedBox(height: 16),
+                    
+                    // Course name skeleton
+                    SkeletonAnimation(
+                      child: Container(
+                        height: 28,
+                        width: 120,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(20),
+                          color: Colors.grey[300],
+                        ),
+                      ),
+                    ),
+                    
+                    const SizedBox(height: 16),
+                    
+                    // Date and status skeleton
+                    Row(
+                      children: [
+                        SkeletonAnimation(
+                          child: Container(
+                            width: 16,
+                            height: 16,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: Colors.grey[300],
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: SkeletonAnimation(
+                            child: Container(
+                              height: 16,
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(8),
+                                color: Colors.grey[300],
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        SkeletonAnimation(
+                          child: Container(
+                            width: 80,
+                            height: 20,
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(8),
+                              color: Colors.grey[300],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildErrorState(AppLocalizations? localizations) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24.0),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            SkeletonAnimation(
-              child: Container(
-                height: 150,
-                width: MediaQuery.of(context).size.width * 0.8,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(10.0),
-                  color: Colors.grey[300],
+            Container(
+              width: 100,
+              height: 100,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: Color(0xFFFEF2F2),
+                border: Border.all(
+                  color: Color(0xFFFECACA),
+                  width: 2,
                 ),
               ),
-            ),
-            const SizedBox(height: 5),
-            SkeletonAnimation(
-              child: Container(
-                height: 15,
-                width: MediaQuery.of(context).size.width * 0.7,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(10.0),
-                  color: Colors.grey[300],
-                ),
+              child: const Icon(
+                Icons.error_outline,
+                size: 50,
+                color: Color(0xFFDC2626),
               ),
             ),
-            const SizedBox(height: 5),
-            SkeletonAnimation(
-              child: Container(
-                width: MediaQuery.of(context).size.width * 0.4,
-                height: 13,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(10.0),
-                  color: Colors.grey[300],
+            const SizedBox(height: 24),
+            const Text(
+              "Connection Error",
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF1F2937),
+                fontFamily: 'cocon-next-arabic-regular',
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              localizations?.errorConnectingWithServer ?? 
+                "Unable to connect with the server.\nPlease check your internet connection and try again.",
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontSize: 14,
+                color: Color(0xFF6B7280),
+                height: 1.5,
+              ),
+            ),
+            const SizedBox(height: 24),
+            ElevatedButton.icon(
+              onPressed: () {
+                setState(() {
+                  loadingState = 0;
+                  page = 0;
+                  stopLoadingData = false;
+                });
+                _getDataFromShared();
+              },
+              icon: const Icon(Icons.refresh, size: 20),
+              label: const Text('Retry'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Color(0xFF3B82F6),
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
                 ),
+                elevation: 3,
               ),
             ),
           ],
@@ -362,4 +821,78 @@ class _YoutubeLiveFragmentState extends State<YoutubeLiveFragment> {
       ),
     );
   }
+
+  Widget _buildEmptyState(AppLocalizations? localizations) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              width: 120,
+              height: 120,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: LinearGradient(
+                  colors: [Color(0xFFF3F4F6), Color(0xFFE5E7EB)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+              ),
+              child: const Icon(
+                Icons.live_tv_rounded,
+                size: 60,
+                color: Color(0xFF9CA3AF),
+              ),
+            ),
+            const SizedBox(height: 24),
+            const Text(
+              "No Live Videos",
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF1F2937),
+                fontFamily: 'cocon-next-arabic-regular',
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              localizations?.noVideosFound ?? 
+                "No live videos or courses are available at the moment.\nCheck back later for new content.",
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontSize: 14,
+                color: Color(0xFF6B7280),
+                height: 1.5,
+              ),
+            ),
+            const SizedBox(height: 24),
+            ElevatedButton.icon(
+              onPressed: () {
+                setState(() {
+                  loadingState = 0;
+                  page = 0;
+                  stopLoadingData = false;
+                });
+                _getDataFromShared();
+              },
+              icon: const Icon(Icons.refresh, size: 20),
+              label: const Text('Refresh'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Color(0xFF10B981),
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                elevation: 3,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
 }
