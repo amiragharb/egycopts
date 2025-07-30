@@ -77,38 +77,54 @@ class _HomeFragmentState extends State<HomeFragment> with TickerProviderStateMix
   }
 
   Future<void> getDataFromShared() async {
-    final SharedPreferences prefs = await SharedPreferences.getInstance();
-    myLanguage = (prefs.getString('language') ?? "en");
-    userID = prefs.getString("userID") ?? "";
-    setState(() {
-      loadingState = 0;
-    });
-    String connectionResponse = await _checkInternetConnection();
-    if (connectionResponse == '1') {
-      var fetchedNews = await getNewsList();
-      if (mounted && loadingState == 1 && fetchedNews.isNotEmpty) {
-        newsListViewData();
-      }
-    } else {
-      if (!mounted) return;
-      Navigator.of(context)
-          .push(MaterialPageRoute(builder: (context) => NoInternetConnectionActivity()))
-          .then((value) async {
+    try {
+      final SharedPreferences prefs = await SharedPreferences.getInstance();
+      myLanguage = (prefs.getString('language') ?? "en");
+      userID = prefs.getString("userID") ?? "";
+      setState(() {
+        loadingState = 0;
+      });
+      String connectionResponse = await _checkInternetConnection();
+      if (connectionResponse == '1') {
         var fetchedNews = await getNewsList();
         if (mounted && loadingState == 1 && fetchedNews.isNotEmpty) {
           newsListViewData();
         }
-      });
+      } else {
+        if (!mounted) return;
+        Navigator.of(context)
+            .push(MaterialPageRoute(builder: (context) => NoInternetConnectionActivity()))
+            .then((value) async {
+          var fetchedNews = await getNewsList();
+          if (mounted && loadingState == 1 && fetchedNews.isNotEmpty) {
+            newsListViewData();
+          }
+        });
+      }
+    } catch (e) {
+      debugPrint("Error in getDataFromShared: $e");
+      if (mounted) {
+        setState(() {
+          loadingState = 2; // Error state
+        });
+      }
     }
   }
 
   void newsListViewData() {
-    setState(() {
-      listViewNewsFeed.clear();
-      for (int i = 0; i < newsList.length; i++) {
-        listViewNewsFeed.add(newsList[i].toJson());
-      }
-    });
+    try {
+      setState(() {
+        listViewNewsFeed.clear();
+        for (int i = 0; i < newsList.length; i++) {
+          listViewNewsFeed.add(newsList[i].toJson());
+        }
+      });
+    } catch (e) {
+      debugPrint("Error in newsListViewData: $e");
+      setState(() {
+        loadingState = 2; // Error state
+      });
+    }
   }
 
   Future<List<News>> getNewsList() async {
@@ -117,7 +133,7 @@ class _HomeFragmentState extends State<HomeFragment> with TickerProviderStateMix
 
     final SharedPreferences prefs = await SharedPreferences.getInstance();
     userID = prefs.getString("userID") ?? "";
-    if (mobileToken == null || mobileToken!.isEmpty) {
+    if (mobileToken == null || mobileToken?.isEmpty == true) {
       mobileToken = await FirebaseMessaging.instance.getToken();
     }
 
@@ -137,10 +153,16 @@ class _HomeFragmentState extends State<HomeFragment> with TickerProviderStateMix
         return [];
       } else {
         setState(() => loadingState = 1);
-        var newsObj = newsFromJson(responseBody); // newsFromJson returns List<News>
-        page++;
-        newsList.addAll(newsObj);
-        return newsObj;
+        try {
+          var newsObj = newsFromJson(responseBody); // newsFromJson returns List<News>
+          page++;
+          newsList.addAll(newsObj);
+          return newsObj;
+        } catch (e) {
+          debugPrint("Error parsing news JSON: $e");
+          setState(() { loadingState = 2; });
+          return [];
+        }
       }
     } else {
       setState(() { loadingState = 2; });
@@ -282,7 +304,7 @@ class _HomeFragmentState extends State<HomeFragment> with TickerProviderStateMix
                     child: Row(
                       children: [
                         Text(
-                          AppLocalizations.of(context)!.by,
+                          AppLocalizations.of(context)?.by ?? "By",
                           style: TextStyle(
                             fontSize: 14,
                             fontFamily: 'cocon-next-arabic-regular',
@@ -399,7 +421,7 @@ class _HomeFragmentState extends State<HomeFragment> with TickerProviderStateMix
         child: Padding(
           padding: const EdgeInsets.symmetric(vertical: 30.0),
           child: Text(
-            AppLocalizations.of(context)!.errorConnectingWithServer,
+            AppLocalizations.of(context)?.errorConnectingWithServer ?? "Error connecting with server",
             style: TextStyle(
               fontSize: 20.0,
               fontFamily: 'cocon-next-arabic-regular',
@@ -424,7 +446,7 @@ class _HomeFragmentState extends State<HomeFragment> with TickerProviderStateMix
             Padding(
               padding: const EdgeInsets.all(8.0),
               child: Text(
-                AppLocalizations.of(context)!.noNewsFound,
+                AppLocalizations.of(context)?.noNewsFound ?? "No news found",
                 style: TextStyle(
                   fontSize: 20.0,
                   fontFamily: 'cocon-next-arabic-regular',
